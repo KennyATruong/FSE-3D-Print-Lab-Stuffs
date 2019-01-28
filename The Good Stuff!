@@ -1,0 +1,380 @@
+// File Name: Good Stuff.gs
+// Revision 012819.1 (January 28, 2019)  
+// Created and maintained by Kenny An Truong for the Fulton Schools of Engineering 3D Printing & Laser Cutting Lab @ Arizona State University with the aid of his amazing friends and co-workers at the office
+
+// NOT INTENDED FOR PUBLIC CONSUMPTION!
+// THIS SCRIPT ONLY WORKS (as intended) IN CONJUNCTION w/ THE OTHER SCRIPTS IN THE GOOGLE SCRIPTS PROJECT TITLED 'Progress Report Scripts'!
+
+// Purpose/Functions: 1. Create two custom menus entitled "Utilities" and "Email" to contain relevant functions respective to each menu
+//                    2. Allow user to send pre-defined emails from either a clickable interface on the spreadsheet or via the integrated menus
+//                       - Email the student to pick up their completed projects
+//                       - Email the student to resend their file(s) due to wrong file format (must be .stl)
+//                       - Email the student a reminder to send in an email to fse3dprintlab@gmail.com in order for the lab to start the project
+//                    3. Auto-import and parse data from another workbook and automatically format the respective cells
+//                    4. Automatically grab data from the sheet "Progress Report" and use the attained data to update which 3D printers are open/utlized. Can be triggered by the user if the automatic trigger isn't active
+// Detailed comments are coming later :)
+
+
+/// INTEGRATE CUSTOM MENU INTO TOOLBAR ///
+function utilitiesMenu() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Utilities')
+    .addItem('Import new requests...', 'importRequest')
+    .addItem('Update utilization...', 'manualPurge')
+    .addToUi();
+  ui.createMenu('Email')
+    .addItem('Notify for pickup...', 'emailPickup')
+    .addItem('Notify to send email...', 'emailRemind')
+    .addItem('Notify to send as .stl...', 'emailSTL')
+    .addToUi();
+}
+
+/// PURGE AND UPDATE UTILIZATION MAP ROUTINE ///
+function manualPurge() {
+  var range = SpreadsheetApp.getActiveSheet().getRange("G6:G");
+  var values = range.getValues();
+  var targetRange = range.offset(0, 2)
+  var targetValues = range.offset(0, 2).getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][0] != 3) {
+      targetValues[i][0] = '';
+    }
+  }
+  targetRange.setValues(targetValues)
+
+  var ui = SpreadsheetApp.getUi();
+  var utilizeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Utilization Map");
+  var progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Progress Report");
+  var printerRange = progressSheet.getRange("I6:I");
+  var values = printerRange.getValues();
+  var rangeBath = progressSheet.getRange("G6:G");
+  var bathValues = rangeBath.getValues();
+
+  var targetAmber = utilizeSheet.getRange("A4");
+  var targetCake = utilizeSheet.getRange("A6");
+  var targetCoffee = utilizeSheet.getRange("A8");
+  var targetDimension = utilizeSheet.getRange("A10");
+  var targetDonut = utilizeSheet.getRange("A12");
+  var targetFerrari = utilizeSheet.getRange("A14");
+  var targetHarambe = utilizeSheet.getRange("A16");
+  var targetJam = utilizeSheet.getRange("A18");
+  var targetMojo = utilizeSheet.getRange("A20");
+  var targetPotato = utilizeSheet.getRange("A22");
+  var targetUlti = utilizeSheet.getRange("A24");
+  var targetZ18 = utilizeSheet.getRange("A26");
+  var targetBath = utilizeSheet.getRange("A29");
+
+  //Purge Before Running... Super inefficient but I dunno what to do
+  if (targetAmber.getValue() != 'DEAD') {
+    targetAmber.setValue('')
+  }
+  if (targetCake.getValue() != 'DEAD') {
+    targetCake.setValue('')
+  }
+  if (targetCoffee.getValue() != 'DEAD') {
+    targetCoffee.setValue('')
+  }
+  if (targetDimension.getValue() != 'DEAD') {
+    targetDimension.setValue('')
+  }
+  if (targetDonut.getValue() != 'DEAD') {
+    targetDonut.setValue('')
+  }
+  if (targetFerrari.getValue() != 'DEAD') {
+    targetFerrari.setValue('')
+  }
+  if (targetHarambe.getValue() != 'DEAD') {
+    targetHarambe.setValue('')
+  }
+  if (targetMojo.getValue() != 'DEAD') {
+    targetMojo.setValue('')
+  }
+  if (targetJam.getValue() != 'DEAD') {
+    targetJam.setValue('')
+  }
+  if (targetPotato.getValue() != 'DEAD') {
+    targetPotato.setValue('')
+  }
+  if (targetUlti.getValue() != 'DEAD') {
+    targetUlti.setValue('')
+  }
+  if (targetZ18.getValue() != 'DEAD') {
+    targetZ18.setValue('')
+  }
+  if (targetBath.getValue() != 'DEAD') {
+    targetBath.setValue('')
+  }
+
+  // Bath
+  for (var i = 1; i < bathValues.length; i++) {
+    if (bathValues[i][0] == '') {
+
+    } else if (bathValues[i][0] == '3.5') {
+      targetBath.setValue('Occupied')
+    }
+  }
+
+  // Printers
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][0] == 'Amber') {
+      targetAmber.setValue('Occupied')
+    } else if (values[i][0] == 'Cake') {
+      targetCake.setValue('Occupied')
+    } else if (values[i][0] == 'Coffee') {
+      targetCoffee.setValue('Occupied')
+    } else if (values[i][0] == 'Dimension') {
+      targetDimension.setValue('Occupied')
+    } else if (values[i][0] == 'Donut') {
+      targetDonut.setValue('Occupied')
+    } else if (values[i][0] == 'Ferrari') {
+      targetFerrari.setValue('Occupied')
+    } else if (values[i][0] == 'Harambe') {
+      targetHarambe.setValue('Occupied')
+    } else if (values[i][0] == 'Jam') {
+      targetJam.setValue('Occupied')
+    } else if (values[i][0] == 'Mojo') {
+      targetMojo.setValue('Occupied')
+    } else if (values[i][0] == 'Potato') {
+      targetPotato.setValue('Occupied')
+    } else if (values[i][0] == 'Ulti') {
+      targetUlti.setValue('Occupied')
+    } else if (values[i][0] == 'Z18') {
+      targetZ18.setValue('Occupied')
+    }
+  }
+  ui.alert("Success!", "UTILIZATION MAP updated.",ui.ButtonSet.OK)
+}
+
+///// AUTOMATED EMAIL ROUTINES /////
+
+/// PICKUP NOTIFICATION ///
+function emailPickup() {
+  var addressCell = SpreadsheetApp.getActiveRange().offset(0, 1)
+  var progressCell = SpreadsheetApp.getActiveRange().offset(0, 6)
+  var address = addressCell.getValue()
+  var extractName = SpreadsheetApp.getActiveRange().getValue();
+  if (extractName.indexOf("(") > 1) {
+    var studentName = extractName.split('(').slice(0, -1);
+  } else {
+    var studentName = extractName
+    }
+  var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
+    if (account.isDefault) {
+      return true
+    }
+  })[0].signature;
+  var ui = SpreadsheetApp.getUi();
+
+  var studentCellcheck = SpreadsheetApp.getActiveRange().getColumn()
+  if (address != '') {
+    if (studentCellcheck == 1) {
+      var confirmPickup = ui.alert('Confirm', 'Notify ' + studentName + ' to retrieve project(s)?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+      if (confirmPickup == ui.Button.YES) {
+        var pickupMessage = "<p>Dear " + studentName + "," + "</p><p><b>Your part(s) have been completed and are ready for pickup during our business hours listed below.</b></p><p> We are currently testing a semi-automated emailing system. If your name is incorrect in the greeting or this email was sent in error, please let us know! Sorry for any inconveniences as we run the system through its paces.</p><p>Best regards,</p><p>---" + signature;
+        MailApp.sendEmail({
+          to: address,
+          subject: "Your 3D Print Project(s) Are Ready",
+          htmlBody: pickupMessage
+        })
+        ui.alert("Email sucessfully sent to " + studentName)
+        progressCell.setValue("-4-");
+      } else {
+        ui.alert('Canceled')
+      }
+    } else {
+      ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+    }
+  } else {
+    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below & if the requests are imported from the WORK REQUEST.', ui.ButtonSet.OK)
+  }
+}
+
+/// RESEND AS STL ///
+function emailSTL() {
+  var addressCell = SpreadsheetApp.getActiveRange().offset(0, 1);
+  var address = addressCell.getValue();
+  var extractName = SpreadsheetApp.getActiveRange().getValue();
+  if (extractName.indexOf("(") > 1) {
+    var studentName = extractName.split('(').slice(0, -1);
+  } else {
+    var studentName = extractName
+    }
+  var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
+    if (account.isDefault) {
+      return true
+    }
+  })[0].signature;
+  var ui = SpreadsheetApp.getUi();
+  var studentCellcheck = SpreadsheetApp.getActiveRange().getColumn()
+  if (address != '') {
+    if (studentCellcheck == 1) {
+      var confirmPickup = ui.alert('Confirm', 'Notify ' + studentName + ' to resend part as .stl?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+      if (confirmPickup == ui.Button.YES) {
+        var pickupMessage = "<p>Dear " + studentName + ",</p><p><b>According to our records, the original files that you sent in are not in .stl format. Please send in a single email to this address with your .stl file(s) attached in order for us to start your project.</b></p><p> We are currently testing a semi-automated emailing system. If your name is incorrect in the greeting or this email was sent in error, please let us know! Sorry for any inconveniences as we run the system through its paces.</p><p>Best regards,</p><p>---" + signature;
+        MailApp.sendEmail({
+          to: address,
+          subject: "Attention Regarding 3D Print Request",
+          htmlBody: pickupMessage
+        })
+        ui.alert('Email sucessfully sent to ' + studentName)
+      } else {
+        ui.alert('Canceled')
+      }
+    } else {
+      ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+    }
+  } else {
+    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below.', ui.ButtonSet.OK)
+  }
+}
+
+/// NOTIFY TO SEND IN EMAIL ///
+function emailRemind() {
+  var addressCell = SpreadsheetApp.getActiveRange().offset(0, 1)
+  var progressCell = SpreadsheetApp.getActiveRange().offset(0, 6)
+  var address = addressCell.getValue()
+  var extractName = SpreadsheetApp.getActiveRange().getValue();
+  if (extractName.indexOf("(") > 1) {
+    var studentName = extractName.split('(').slice(0, -1);
+  } else {
+    var studentName = extractName
+    }
+  var studentName = extractName.split('(').slice(0, -1);
+  var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
+    if (account.isDefault) {
+      return true
+    }
+  })[0].signature;
+  var ui = SpreadsheetApp.getUi();
+
+  var studentCellcheck = SpreadsheetApp.getActiveRange().getColumn()
+  if (address != '') {
+    if (studentCellcheck == 1) {
+      var confirmPickup = ui.alert('Confirm', 'Notify ' + studentName + ' to send in email?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+      if (confirmPickup == ui.Button.YES) {
+        var pickupMessage = "<p>Dear " + studentName + ",</p><p><b>According to our records, we have not received an email from you with your .stl file(s) attached. Please send in a single email to this address with your .stl file(s) attached in order for us to start your project.</b></p><p> We are currently testing a semi-automated emailing system. If your name is incorrect in the greeting or this email was sent in error, please let us know! Sorry for any inconveniences as we run the system through its paces.</p><p>Best regards,</p><p>---" + signature;
+        MailApp.sendEmail({
+          to: address,
+          subject: "Attention Regarding 3D Print Request",
+          htmlBody: pickupMessage
+        })
+        ui.alert('Email sucessfully sent to ' + studentName)
+      } else {
+        ui.alert('Canceled')
+      }
+    } else {
+      ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+    }
+  } else {
+    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below.', ui.ButtonSet.OK)
+  }
+}
+
+///// END EMAiL ROUTINES /////
+
+/// IMPORT WORK REQUEST ROUTINE ///
+function importRequest() {
+  var ui = SpreadsheetApp.getUi();
+  var todayDate = new Date();
+  var requestSheet = SpreadsheetApp.openById("1koEpZVHfF59zzRmt42pyNfo5nfILlT1boO-l_XBXrLg").getSheetByName("Work Request Quick Reference");
+  var progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Progress Report");
+
+  var inprogressCheck = requestSheet.getRange("L900:L1500");
+  var checkBoolean = inprogressCheck.getValues();
+
+  var originDate = requestSheet.getRange("A900:A1500").getValues();
+  var originName = requestSheet.getRange("B900:B1500").getValues();
+  var originEmail = requestSheet.getRange("C900:C1500").getValues();
+  var originPart = requestSheet.getRange("D900:D1500").getValues();
+  var originPrinter = requestSheet.getRange("G900:G1500").getValues();
+  var originMaterial = requestSheet.getRange("I900:I1500").getValues();
+  var originNotes = requestSheet.getRange("K900:K1500").getValues();
+  var originUnit = requestSheet.getRange("E900:E1500").getValues();
+  var originDensity = requestSheet.getRange("H900:H1500").getDisplayValues();
+  var originFSE = requestSheet.getRange("J900:J1500").getValues()
+  var originModel = requestSheet.getRange("AA900:AA1500").getValues();
+
+  var destName = [];
+  var destEmail = [];
+  var destPart = [];
+  var destDate = [];
+  var destChecked = [];
+  var destReq = [];
+  var destCode = [];
+  var destPrinter = [];
+  var destMaterial = [];
+  var destNotes = [];
+  
+  var dlLink = 'https://drive.google.com/uc?export=download&id='
+
+  ui.alert('Populating requests...', "Press OK to continue", ui.ButtonSet.OK)
+  for (var i = 1; i < checkBoolean.length; i++) {
+    if (checkBoolean[i] == 'false' && originName[i] != "") {
+      var stringURL = JSON.stringify(originModel[i]);
+      var splitID = stringURL.split("=").pop();
+      splitID = splitID.slice(0,-1);
+      destName.push([originName[i]+ "("+originFSE[i]+")"]);
+      destEmail.push(originEmail[i]);
+      destPart.push(['=HYPERLINK('+'"'+dlLink+splitID+','+'"'+ originPart[i] + '"' + ')'])
+      destDate.push(originDate[i]);
+      destChecked.push(todayDate)
+      destReq.push('true');
+      destCode.push('AUTO-IMPORT');
+      destPrinter.push(originPrinter[i]);
+      destMaterial.push(originMaterial[i]);
+      destNotes.push([originDensity[i]+' '+originUnit[i]+'. '+originNotes[i]]);
+      checkBoolean[i][0] ='true';          
+    }
+  }
+  inprogressCheck.setValues(checkBoolean)
+
+  requestCount = destName.length
+  if (requestCount == 0) {
+    ui.alert('Error!', 'There are no new requests to import.', ui.ButtonSet.OK)
+  } else {
+    var nextRow = progressSheet.getLastRow() + 1
+    progressSheet.getRange(nextRow, 1, requestCount, 1).setValues(destName);
+    progressSheet.getRange(nextRow, 2, requestCount, 1).setValues(destEmail);
+    progressSheet.getRange(nextRow, 3, requestCount, 1).setFormulas(destPart);
+    progressSheet.getRange(nextRow, 4, requestCount, 1).setValues(destDate);
+    progressSheet.getRange(nextRow, 5, requestCount).setValue(destChecked);
+    progressSheet.getRange(nextRow, 6, requestCount).setValue(destReq);
+    progressSheet.getRange(nextRow, 7, requestCount).setValue(destCode);
+    progressSheet.getRange(nextRow, 8, requestCount, 1).setValues(destPrinter);
+    progressSheet.getRange(nextRow, 10, requestCount, 1).setValues(destMaterial);
+    progressSheet.getRange(nextRow, 11, requestCount, 1).setValues(destNotes);   
+    
+    //Format Printer Names
+    var range = progressSheet.getRange("H:H");
+    var values = range.getValues();
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][0] == 'No Preference') {
+        values[i][0] = 'N/P';
+      }
+      if (values[i][0] == 'Dremel 3D45') {
+        values[i][0] = 'Dremel';
+      }
+      if (values[i][0] == 'MakerBot Replicator+') {
+        values[i][0] = 'M+';
+      }
+      if (values[i][0] == 'Stratasys Dimension') {
+        values[i][0] = 'Dim';
+      }
+      if (values[i][0] == 'Stratasys Mojo') {
+        values[i][0] = 'Mojo';
+      }
+      if (values[i][0] == 'MakerBot Z18') {
+        values[i][0] = 'Z18';
+      }
+      if (values[i][0] == 'Ultimaker 2') {
+        values[i][0] = 'Ulti';
+      }
+    }
+    range.setValues(values)
+    
+    ui.alert('Success!', requestCount + ' requests imported. Ensure that it is checked off in the Work Request Quick Reference.', ui.ButtonSet.OK)
+  }
+  var requestNotificationCell = progressSheet.getRange("K4");
+  requestNotificationCell.setBackground("#424242") 
+  requestNotificationCell.setFontColor("#424242")
+}
