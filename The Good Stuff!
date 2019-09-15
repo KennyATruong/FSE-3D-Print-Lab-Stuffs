@@ -1,5 +1,5 @@
 // File Name: Good Stuff.gs
-// Revision 012819.1 (January 28, 2019)  
+// Revision like 9001 (July 7, 2019 Build 2)  
 // Created and maintained by Kenny An Truong for the Fulton Schools of Engineering 3D Printing & Laser Cutting Lab @ Arizona State University with the aid of his amazing friends and co-workers at the office
 
 // NOT INTENDED FOR PUBLIC CONSUMPTION!
@@ -18,36 +18,94 @@
 /// INTEGRATE CUSTOM MENU INTO TOOLBAR ///
 function utilitiesMenu() {
   var ui = SpreadsheetApp.getUi();
-  ui.createMenu('Utilities')
+  ui.createMenu('Print Lab Tools')
     .addItem('Import new requests...', 'importRequest')
     .addItem('Update utilization...', 'manualPurge')
+    .addSubMenu(ui.createMenu('Utilities')
+      .addItem('Queue position checker...', 'sidebar_queuePos'))
     .addToUi();
   ui.createMenu('Email')
-    .addItem('Notify for pickup...', 'emailPickup')
-    .addItem('Notify to send email...', 'emailRemind')
-    .addItem('Notify to send as .stl...', 'emailSTL')
+    .addItem('Email utility...', 'sidebarEmail')
     .addToUi();
+}
+
+/// TESTING STUFFS ///
+function sidebar_queuePos() {
+  var html = HtmlService.createHtmlOutputFromFile('Queue Checker')
+    .setTitle('Queue Check Utility')
+    .setWidth(300);
+  SpreadsheetApp.getUi() 
+    .showSidebar(html);
+}
+
+function sidebarEmail() {
+  var html = HtmlService.createHtmlOutputFromFile('Emailer')
+    .setTitle('Email Utility')
+    .setWidth(300);
+  SpreadsheetApp.getUi() 
+    .showSidebar(html);
+}
+
+function sidebar_queueStats() {
+  var html = HtmlService.createHtmlOutputFromFile('Queue Stats Checker')
+    .setTitle('Queue Statistics Utility')
+    .setWidth(300);
+  SpreadsheetApp.getUi()
+    .showSidebar(html);
+}
+
+function queueCheck() {
+  var progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Progress Report");
+  var ui = SpreadsheetApp.getUi();
+
+  var activeCell = SpreadsheetApp.getCurrentCell();
+  var studentCellcheck = activeCell.getColumn()
+  if (studentCellcheck != 8) {
+    return ("Follow the instructions dingus");
+  }
+  var queriedPrinter = activeCell.offset(0, 1).getValue();
+  var studentName = activeCell.offset(0, -6).getValue();
+  var countRange = progressSheet.getRange(activeCell.getRow() - 200, 8, 200, 2).getValues();
+  var queueCounter = 0
+
+  for (var i = 1; i < countRange.length; i++) {
+    if (countRange[i][0] == 2 && countRange[i][1] == queriedPrinter) {
+      queueCounter++
+    } else if (JSON.stringify(countRange[i][0]).indexOf("(2)") > -1 && countRange[i][1] == queriedPrinter) {
+      queueCounter++
+    } else if (countRange[i][0] == 6 && countRange[i][1] == queriedPrinter) {
+      queueCounter++
+    } else if (JSON.stringify(countRange[i][0]).indexOf("(6)") > -1 && countRange[i][1] == queriedPrinter) {
+      queueCounter++
+    }
+  }
+  var result = "There are " + queueCounter + " prints on " + queriedPrinter + " before the selected project by " + studentName
+  return (result);
 }
 
 /// PURGE AND UPDATE UTILIZATION MAP ROUTINE ///
 function manualPurge() {
-  var range = SpreadsheetApp.getActiveSheet().getRange("G6:G");
+  var utilizeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Utilization Map");
+  var progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Progress Report");
+  var progresslastRow = progressSheet.getLastRow()
+  var range = SpreadsheetApp.getActiveSheet().getRange(progresslastRow - 250, 8, 251);
+  var ui = SpreadsheetApp.getUi();
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Purging and updating utilization...', 'In Progress')
+
   var values = range.getValues();
   var targetRange = range.offset(0, 2)
   var targetValues = range.offset(0, 2).getValues();
   for (var i = 1; i < values.length; i++) {
-    if (values[i][0] != 3) {
+    if (JSON.stringify(values[i][0]).indexOf('3') == -1) {
       targetValues[i][0] = '';
     }
   }
   targetRange.setValues(targetValues)
 
-  var ui = SpreadsheetApp.getUi();
-  var utilizeSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Utilization Map");
-  var progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Progress Report");
-  var printerRange = progressSheet.getRange("I6:I");
+  var printerRange = progressSheet.getRange("J6:J");
   var values = printerRange.getValues();
-  var rangeBath = progressSheet.getRange("G6:G");
+  var rangeBath = progressSheet.getRange("H6:H");
   var bathValues = rangeBath.getValues();
 
   var targetAmber = utilizeSheet.getRange("A4");
@@ -142,135 +200,355 @@ function manualPurge() {
       targetZ18.setValue('Occupied')
     }
   }
-  ui.alert("Success!", "UTILIZATION MAP updated.",ui.ButtonSet.OK)
+  SpreadsheetApp.getActiveSpreadsheet().toast('Utilization updated', 'Success!')
 }
 
 ///// AUTOMATED EMAIL ROUTINES /////
 
-/// PICKUP NOTIFICATION ///
+/// PICKUP NOTIFICATION TEST ///
 function emailPickup() {
-  var addressCell = SpreadsheetApp.getActiveRange().offset(0, 1)
-  var progressCell = SpreadsheetApp.getActiveRange().offset(0, 6)
-  var address = addressCell.getValue()
-  var extractName = SpreadsheetApp.getActiveRange().getValue();
-  if (extractName.indexOf("(") > 1) {
-    var studentName = extractName.split('(').slice(0, -1);
-  } else {
-    var studentName = extractName
-    }
   var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
     if (account.isDefault) {
       return true
     }
   })[0].signature;
-  var ui = SpreadsheetApp.getUi();
 
-  var studentCellcheck = SpreadsheetApp.getActiveRange().getColumn()
-  if (address != '') {
-    if (studentCellcheck == 1) {
-      var confirmPickup = ui.alert('Confirm', 'Notify ' + studentName + ' to retrieve project(s)?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
-      if (confirmPickup == ui.Button.YES) {
-        var pickupMessage = "<p>Dear " + studentName + "," + "</p><p><b>Your part(s) have been completed and are ready for pickup during our business hours listed below.</b></p><p> We are currently testing a semi-automated emailing system. If your name is incorrect in the greeting or this email was sent in error, please let us know! Sorry for any inconveniences as we run the system through its paces.</p><p>Best regards,</p><p>---" + signature;
-        MailApp.sendEmail({
-          to: address,
-          subject: "Your 3D Print Project(s) Are Ready",
-          htmlBody: pickupMessage
-        })
-        ui.alert("Email sucessfully sent to " + studentName)
-        progressCell.setValue("-4-");
-      } else {
-        ui.alert('Canceled')
-      }
+  var ui = SpreadsheetApp.getUi();
+  var activeCell = SpreadsheetApp.getActiveRange()
+  var studentCellcheck = activeCell.getColumn()
+  if (activeCell.getNumColumns() > 1) {
+    ui.alert('Hari Error!', 'Dingus, go read the instructions!', ui.ButtonSet.OK)
+    return;
+    } else if (activeCell.getNumColumns() == 1) {
+      if (studentCellcheck == 2) {
+        var address = activeCell.offset(0, 1).getValue();
+        var extractName = activeCell.getValue();
+        var progressCell = activeCell.offset(0, 6);
+        var printer = activeCell.offset(0, 8);
+        var checkMat = activeCell.offset(0, 9).getValue()
+        var checkPrinter = activeCell.offset(0, 8).getValue()
+        } else if (studentCellcheck == 8) {
+          var address = activeCell.offset(0, -5).getValue();
+          var extractName = activeCell.offset(0, -6).getValue();
+          var progressCell = activeCell;
+          var printer = activeCell.offset(0, 2);
+          var checkMat = activeCell.offset(0, 3).getValue()
+          var checkPrinter = activeCell.offset(0, 2).getValue()
+          } else {
+            ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+            return;
+          }
     } else {
-      ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+      ui.alert('Error!', 'Okay text Kenny ASAP', ui.ButtonSet.OK)
+    }
+    
+  if (address != '') {
+    if (extractName.indexOf("(") > 1) {
+      var studentName_confirm = extractName.split('(').slice(0, -1);
+      var studentName_email = extractName.split(" ").shift().charAt(0).toUpperCase() + extractName.split(" ").shift().slice(1).toLowerCase();
+    } else {
+      var studentName_confirm = extractName
+      var studentName_email = extractName.split(" ").shift().charAt(0).toUpperCase() + extractName.split(" ").shift().slice(1).toLowerCase();
+    }
+    var confirmSend = ui.alert('Confirm', 'Notify ' + studentName_confirm + ' to retrieve project(s)?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+    if (confirmSend == ui.Button.YES) {
+
+      var engLogo = "https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png"
+      var messageBody = 'Your part(s) have been completed and are <span style="color:#8C1D40">ready for pickup</span> during our business hours listed below.</h3><h3>If you do not pick up your project within 30 days, it may be abandoned.';
+      var message = '<p style="background-color:#FFC627;padding:10px;"><img src= https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png width="400" height="99"></p><h1>' + studentName_email + ',</h1><h3 style="width=90%">' + messageBody + '</h3><hr><p><b>If you have any amendments or questions regarding your print(s), feel free to contact us!</b><br><p>' + signature;
+
+      MailApp.sendEmail({
+        to: address,
+        subject: "Your 3D Print Project(s) Are Ready",
+        htmlBody: message
+      })
+      ui.alert('Success!', "Email sucessfully sent to " + studentName_confirm + '\n(' + address + ')', ui.ButtonSet.OK)
+      if (checkMat == true && checkPrinter != '') {
+        ui.alert('Confirm', "Ensure that " + studentName_confirm + "'s filament is removed from " + checkPrinter, ui.ButtonSet.OK)
+      } else if (checkMat == true && checkPrinter == '') {
+        ui.alert('Confirm', "Ensure that " + studentName_confirm + "'s filament is removed from the printer", ui.ButtonSet.OK)
+      }
+      progressCell.setValue("4");
+      printer.setValue("");
+      Logger.log(studentName_confirm + ' emailed to pick up their project.');
+    } else {
+      ui.alert('Error!', 'Email routine canceled by user', ui.ButtonSet.OK)
+    }
+  } else {
+    ui.alert('Error!', 'There is no email associated for ' + studentName_confirm + '.\n\n Automated emails only work for row 611 and below & if the requests are imported from the WORK REQUEST.', ui.ButtonSet.OK)
+    return;
+  }
+}
+
+/// RESEND AS STL TEST ///
+function emailSTL() {
+  var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
+    if (account.isDefault) {
+      return true
+    }
+  })[0].signature;
+
+  var ui = SpreadsheetApp.getUi();
+  var activeCell = SpreadsheetApp.getActiveRange()
+  var studentCellcheck = activeCell.getColumn()
+  if (studentCellcheck == 2) {
+    var address = activeCell.offset(0, 1).getValue()
+    var extractName = activeCell.getValue()
+    var progressCell = activeCell.offset(0, 6)
+    } else if (studentCellcheck == 8) {
+      var address = activeCell.offset(0, -5).getValue()
+      var extractName = activeCell.offset(0, -6).getValue()
+      var progressCell = activeCell
+      } else {
+        ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+        return;
+      }
+  
+  if (address != '') {
+    if (extractName.indexOf("(") > 1) {
+      var studentName = extractName.split('(').slice(0, -1);
+    } else {
+      var studentName = extractName
+    }
+    var confirmSend = ui.alert('Confirm', 'Notify ' + studentName + ' to resend part as .stl?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+    if (confirmSend == ui.Button.YES) {
+
+      var engLogo = "https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png"
+      var messageBody = 'According to our records, the original files that you sent in are <span style="color:#8C1D40">not in .stl format</span>.</h3><h3>Please send in a single email to this address with your .stl file(s) attached in order for us to start your project.';
+      var message = '<p style="background-color:#FFC627;padding:10px;"><img src= https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png width="400" height="99"></p><h1>' + studentName + ',</h1><h3 style="width=90%">' + messageBody + '</h3><hr><p><b>If you have any amendments or questions regarding your print(s), feel free to contact us!</b><br><p>' + signature;
+
+      MailApp.sendEmail({
+        to: address,
+        subject: "Attention Regarding 3D Print Request (Improper File Format)",
+        htmlBody: message
+      })
+      ui.alert('Success!', "Email sucessfully sent to " + studentName + '\n(' + address + ')', ui.ButtonSet.OK)
+    } else {
+      ui.alert('Error!', 'Email routine canceled by user', ui.ButtonSet.OK)
     }
   } else {
     ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below & if the requests are imported from the WORK REQUEST.', ui.ButtonSet.OK)
+    return;
   }
 }
 
-/// RESEND AS STL ///
-function emailSTL() {
-  var addressCell = SpreadsheetApp.getActiveRange().offset(0, 1);
-  var address = addressCell.getValue();
-  var extractName = SpreadsheetApp.getActiveRange().getValue();
-  if (extractName.indexOf("(") > 1) {
-    var studentName = extractName.split('(').slice(0, -1);
-  } else {
-    var studentName = extractName
-    }
+/// PICK UP FILAMENT NOTIFICATION ///
+function emailoutFilament() {
   var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
     if (account.isDefault) {
       return true
     }
   })[0].signature;
+
   var ui = SpreadsheetApp.getUi();
-  var studentCellcheck = SpreadsheetApp.getActiveRange().getColumn()
+  var activeCell = SpreadsheetApp.getActiveRange()
+  var studentCellcheck = activeCell.getColumn()
+  if (studentCellcheck == 2) {
+    var address = activeCell.offset(0, 1).getValue()
+    var extractName = activeCell.getValue()
+  } else if (studentCellcheck == 8) {
+    var address = activeCell.offset(0, -5).getValue()
+    var extractName = activeCell.offset(0, -6).getValue()
+  } else {
+    ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+    return;
+  }
   if (address != '') {
-    if (studentCellcheck == 1) {
-      var confirmPickup = ui.alert('Confirm', 'Notify ' + studentName + ' to resend part as .stl?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
-      if (confirmPickup == ui.Button.YES) {
-        var pickupMessage = "<p>Dear " + studentName + ",</p><p><b>According to our records, the original files that you sent in are not in .stl format. Please send in a single email to this address with your .stl file(s) attached in order for us to start your project.</b></p><p> We are currently testing a semi-automated emailing system. If your name is incorrect in the greeting or this email was sent in error, please let us know! Sorry for any inconveniences as we run the system through its paces.</p><p>Best regards,</p><p>---" + signature;
-        MailApp.sendEmail({
-          to: address,
-          subject: "Attention Regarding 3D Print Request",
-          htmlBody: pickupMessage
-        })
-        ui.alert('Email sucessfully sent to ' + studentName)
-      } else {
-        ui.alert('Canceled')
-      }
+    if (extractName.indexOf("(") > 1) {
+      var studentName = extractName.split('(').slice(0, -1);
     } else {
-      ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+      var studentName = extractName
+    }
+    var confirmSend = ui.alert('Confirm', 'Notify ' + studentName + ' to retrieve their personal filament?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+    if (confirmSend == ui.Button.YES) {
+
+      var engLogo = "https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png"
+      var messageBody = 'According to our records, we have <span style="color:#8C1D40">your filament in storage</span> and you do not have a pending project.</h3><h3>Please come in during our business hours to retrieve your filament, or we may commandeer your filament after 30 days of this notification. If you have an impending project or you are sending in a print request within 3 days, please disregard this message.';
+      var message = '<p style="background-color:#FFC627;padding:10px;"><img src= https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png width="400" height="99"></p><h1>' + studentName + ',</h1><h3 style="width=90%">' + messageBody + '</h3><hr><p><b>If you have any amendments or questions regarding your print(s), feel free to contact us!</b><br><p>' + signature;
+
+      MailApp.sendEmail({
+        to: address,
+        subject: "Attention Regarding 3D Print Request (Filament Retrieval)",
+        htmlBody: message
+      })
+      ui.alert('Success!', "Email sucessfully sent to " + studentName + '\n(' + address + ')', ui.ButtonSet.OK)
+    } else {
+      ui.alert('Error!', 'Email routine canceled by user', ui.ButtonSet.OK)
     }
   } else {
-    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below.', ui.ButtonSet.OK)
+    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below & if the requests are imported from the WORK REQUEST.', ui.ButtonSet.OK)
+    return;
   }
 }
 
-/// NOTIFY TO SEND IN EMAIL ///
-function emailRemind() {
-  var addressCell = SpreadsheetApp.getActiveRange().offset(0, 1)
-  var progressCell = SpreadsheetApp.getActiveRange().offset(0, 6)
-  var address = addressCell.getValue()
-  var extractName = SpreadsheetApp.getActiveRange().getValue();
-  if (extractName.indexOf("(") > 1) {
-    var studentName = extractName.split('(').slice(0, -1);
-  } else {
-    var studentName = extractName
-    }
-  var studentName = extractName.split('(').slice(0, -1);
+/// BRING IN FILAMENT NOTIFICATION ///
+function emailinFilament() {
   var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
     if (account.isDefault) {
       return true
     }
   })[0].signature;
-  var ui = SpreadsheetApp.getUi();
 
-  var studentCellcheck = SpreadsheetApp.getActiveRange().getColumn()
+  var ui = SpreadsheetApp.getUi();
+  var activeCell = SpreadsheetApp.getActiveRange()
+  var studentCellcheck = activeCell.getColumn()
+  if (studentCellcheck == 2) {
+    var address = activeCell.offset(0, 1).getValue()
+    var extractName = activeCell.getValue()
+  } else if (studentCellcheck == 8) {
+    var address = activeCell.offset(0, -5).getValue()
+    var extractName = activeCell.offset(0, -6).getValue()
+  } else {
+    ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+    return;
+  }
   if (address != '') {
-    if (studentCellcheck == 1) {
-      var confirmPickup = ui.alert('Confirm', 'Notify ' + studentName + ' to send in email?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
-      if (confirmPickup == ui.Button.YES) {
-        var pickupMessage = "<p>Dear " + studentName + ",</p><p><b>According to our records, we have not received an email from you with your .stl file(s) attached. Please send in a single email to this address with your .stl file(s) attached in order for us to start your project.</b></p><p> We are currently testing a semi-automated emailing system. If your name is incorrect in the greeting or this email was sent in error, please let us know! Sorry for any inconveniences as we run the system through its paces.</p><p>Best regards,</p><p>---" + signature;
-        MailApp.sendEmail({
-          to: address,
-          subject: "Attention Regarding 3D Print Request",
-          htmlBody: pickupMessage
-        })
-        ui.alert('Email sucessfully sent to ' + studentName)
-      } else {
-        ui.alert('Canceled')
-      }
+    if (extractName.indexOf("(") > 1) {
+      var studentName = extractName.split('(').slice(0, -1);
     } else {
-      ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+      var studentName = extractName
+    }
+    var confirmSend = ui.alert('Confirm', 'Notify ' + studentName + ' to bring in personal filament?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+    if (confirmSend == ui.Button.YES) {
+
+      var engLogo = "https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png"
+      var messageBody = 'According to our records, we have <span style="color:#8C1D40">not received your personal filament</span> and as such, we are unable to begin your project. We can only provide filament for FSE-related projects. </h3><h3>Please bring in your roll of filament or your project may be abandoned.';
+      var message = '<p style="background-color:#FFC627;padding:10px;"><img src= https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png width="400" height="99"></p><h1>' + studentName + ',</h1><h3 style="width=90%">' + messageBody + '</h3><hr><p><b>If you have any amendments or questions regarding your print(s), feel free to contact us!</b><br><p>' + signature;
+
+      MailApp.sendEmail({
+        to: address,
+        subject: "Attention Regarding 3D Print Request (No Filament)",
+        htmlBody: message
+      })
+      ui.alert('Success!', "Email sucessfully sent to " + studentName + '\n(' + address + ')', ui.ButtonSet.OK)
+    } else {
+      ui.alert('Error!', 'Email routine canceled by user', ui.ButtonSet.OK)
     }
   } else {
-    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below.', ui.ButtonSet.OK)
+    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below & if the requests are imported from the WORK REQUEST.', ui.ButtonSet.OK)
+    return;
   }
 }
 
-///// END EMAiL ROUTINES /////
+/// OUT OF FILAMENT NOTIFICATION ///
+function emailbingoFilament() {
+  var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
+    if (account.isDefault) {
+      return true
+    }
+  })[0].signature;
+
+  var ui = SpreadsheetApp.getUi();
+  var activeCell = SpreadsheetApp.getActiveRange()
+  var studentCellcheck = activeCell.getColumn()
+  if (studentCellcheck == 2) {
+    var address = activeCell.offset(0, 1).getValue()
+    var extractName = activeCell.getValue()
+  } else if (studentCellcheck == 8) {
+    var address = activeCell.offset(0, -5).getValue()
+    var extractName = activeCell.offset(0, -6).getValue()
+  } else {
+    ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+    return;
+  }
+  if (address != '') {
+    if (extractName.indexOf("(") > 1) {
+      var studentName = extractName.split('(').slice(0, -1);
+    } else {
+      var studentName = extractName
+    }
+    var confirmSend = ui.alert('Confirm', 'Notify ' + studentName + ' to replace exhausted filament?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+    if (confirmSend == ui.Button.YES) {
+
+      var engLogo = "https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png"
+      var messageBody = 'Your filament that you provided has been <span style="color:#8C1D40">exhausted</span> and as such, we are unable to continue printing your project. Please bring in another roll if you wish to continue on your print(s).';
+      var message = '<p style="background-color:#FFC627;padding:10px;"><img src= https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png width="400" height="99"></p><h1>' + studentName + ',</h1><h3 style="width=90%">' + messageBody + '</h3><hr><p><b>If you have any amendments or questions regarding your print(s), feel free to contact us!</b><br><p>' + signature;
+
+      MailApp.sendEmail({
+        to: address,
+        subject: "Attention Regarding 3D Print Request (Ran Out of Filament)",
+        htmlBody: message
+      })
+      ui.alert('Success!', "Email sucessfully sent to " + studentName + '\n(' + address + ')', ui.ButtonSet.OK)
+    } else {
+      ui.alert('Error!', 'Email routine canceled by user', ui.ButtonSet.OK)
+    }
+  } else {
+    ui.alert('Error!', 'There is no email associated for ' + studentName + '.\n\n Automated emails only work for row 611 and below & if the requests are imported from the WORK REQUEST.', ui.ButtonSet.OK)
+    return;
+  }
+}
+
+/// TOO DAMN BIG ///
+function emailtooBig() {
+  var signature = Gmail.Users.Settings.SendAs.list("me").sendAs.filter(function(account) {
+    if (account.isDefault) {
+      return true
+    }
+  })[0].signature;
+
+  var ui = SpreadsheetApp.getUi();
+  var activeCell = SpreadsheetApp.getActiveRange()
+  var studentCellcheck = activeCell.getColumn()
+  if (studentCellcheck == 2) {
+    var address = activeCell.offset(0, 1).getValue()
+    var extractName = activeCell.getValue()
+    var partName = activeCell.offset(0, 2).getDisplayValue()
+    var rawprinterName = activeCell.offset(0, 7).getValue()
+  } else if (studentCellcheck == 8) {
+    var address = activeCell.offset(0, -5).getValue()
+    var extractName = activeCell.offset(0, -6).getValue()
+    var partName = activeCell.offset(0, -4).getDisplayValue()
+    var rawprinterName = activeCell.offset(0, 1).getValue()
+  } else {
+    ui.alert('Error!', 'Please select a single or range of valid name(s).', ui.ButtonSet.OK)
+    return;
+  }
+  if (address != '') {
+    if (extractName.indexOf("(") > 1) {
+      var studentName_confirm = extractName.split('(').slice(0, -1);
+      var studentName_email = extractName.split(" ").shift().charAt(0).toUpperCase() + extractName.split(" ").shift().slice(1).toLowerCase();
+    } else {
+      var studentName_confirm = extractName
+      var studentName_email = extractName.split(" ").shift().charAt(0).toUpperCase() + extractName.split(" ").shift().slice(1).toLowerCase();
+    }
+    var confirmSend = ui.alert('Confirm', 'Notify ' + studentName_confirm + ' that their part '+partName+' is too big?\n' + '(' + address + ')', ui.ButtonSet.YES_NO)
+    if (confirmSend == ui.Button.YES) {
+
+      if (rawprinterName == "N/P") {
+        var printerName = "Any available printers"
+      } else if (rawprinterName == "M+") {
+        var printerName = "MakerBot Replicator+"
+      } else if (rawprinterName == "Dremel") {
+        var printerName = "Dremel 3D45"
+      } else if (rawprinterName == "Mojo") {
+        var printerName = "Stratasys Mojo"
+      } else if (rawprinterName == "Dim") {
+        var printerName = "Stratasys Dimension"
+      } else {
+        var printerName = ""
+      }
+
+      var engLogo = "https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png"
+      var messageBody = 'Your part <span style="color:#8C1D40">'+ partName +'</span> is too large for the requested printer (<span style="color:#8C1D40">' +printerName+ '</span>). If you are able to, please scale down your model to fit within the build volume of your specified printer.  This information can be accessed on our website at https://3dprintlab.engineering.asu.edu/equipment/.</p><p> If you are unable to scale your part, feel free to come in or send us a follow-up email regarding your ideas for alternative methods.</p>';
+      var message = '<p style="background-color:#FFC627;padding:10px;"><img src= https://engineering.asu.edu/wp-content/uploads/2019/01/asu_fselogo_horiz_rgb_maroongold_footer.png width="400" height="99"></p><h1>' + studentName_email + ',</h1><h3 style="width=90%">' + messageBody + '</h3><hr><p><b>If you have any amendments or questions regarding your print(s), feel free to contact us!</b><br><p>' + signature;
+
+      MailApp.sendEmail({
+        to: address,
+        subject: "Attention Regarding 3D Print Request (Oversized part)",
+        htmlBody: message
+      })
+      ui.alert('Success!', "Email sucessfully sent to " + studentName_confirm + '\n(' + address + ')', ui.ButtonSet.OK)
+    } else {
+      ui.alert('Error!', 'Email routine canceled by user', ui.ButtonSet.OK)
+    }
+  } else {
+    ui.alert('Error!', 'There is no email associated for ' + studentName_confirm + '.\n\n Automated emails only work for row 611 and below & if the requests are imported from the WORK REQUEST.', ui.ButtonSet.OK)
+    return;
+  }
+}
+
+///// END EMAIL ROUTINES /////
 
 /// IMPORT WORK REQUEST ROUTINE ///
 function importRequest() {
@@ -278,22 +556,30 @@ function importRequest() {
   var todayDate = new Date();
   var requestSheet = SpreadsheetApp.openById("1koEpZVHfF59zzRmt42pyNfo5nfILlT1boO-l_XBXrLg").getSheetByName("Work Request Quick Reference");
   var progressSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Progress Report");
+  SpreadsheetApp.getActiveSpreadsheet().toast('Importing Work Requests...', 'In Progress')
+  var requestlastRow = requestSheet.getLastRow()
 
-  var inprogressCheck = requestSheet.getRange("L900:L1500");
+  var inprogressCheck = requestSheet.getRange(requestlastRow - 200, 13, 200);
   var checkBoolean = inprogressCheck.getValues();
-
-  var originDate = requestSheet.getRange("A900:A1500").getValues();
-  var originName = requestSheet.getRange("B900:B1500").getValues();
-  var originEmail = requestSheet.getRange("C900:C1500").getValues();
-  var originPart = requestSheet.getRange("D900:D1500").getValues();
-  var originPrinter = requestSheet.getRange("G900:G1500").getValues();
-  var originMaterial = requestSheet.getRange("I900:I1500").getValues();
-  var originNotes = requestSheet.getRange("K900:K1500").getValues();
-  var originUnit = requestSheet.getRange("E900:E1500").getValues();
-  var originDensity = requestSheet.getRange("H900:H1500").getDisplayValues();
-  var originFSE = requestSheet.getRange("J900:J1500").getValues()
-  var originModel = requestSheet.getRange("AA900:AA1500").getValues();
-
+  
+  var originId = [];
+  for (i = 0; i < 200; i++) {
+    originId.push((requestlastRow - 200) + i);
+  }
+  
+  var originDate = requestSheet.getRange(requestlastRow - 200, 1, 200).getValues();
+  var originName = requestSheet.getRange(requestlastRow - 200, 2, 200).getValues();
+  var originEmail = requestSheet.getRange(requestlastRow - 200, 3, 200).getValues();
+  var originPart = requestSheet.getRange(requestlastRow - 200, 4, 200).getValues();
+  var originPrinter = requestSheet.getRange(requestlastRow - 200, 7, 200).getValues();
+  var originMaterial = requestSheet.getRange(requestlastRow - 200, 9, 200).getValues();
+  var originNotes = requestSheet.getRange(requestlastRow - 200, 12, 200).getValues();
+  var originUnit = requestSheet.getRange(requestlastRow - 200, 5, 200).getValues();
+  var originDensity = requestSheet.getRange(requestlastRow - 200, 8, 200).getDisplayValues();
+  var originFSE = requestSheet.getRange(requestlastRow - 200, 10, 200).getValues()
+  var originModel = requestSheet.getRange(requestlastRow - 200, 28, 200).getValues();
+  
+  var destId = [];
   var destName = [];
   var destEmail = [];
   var destPart = [];
@@ -304,48 +590,51 @@ function importRequest() {
   var destPrinter = [];
   var destMaterial = [];
   var destNotes = [];
-  
+
   var dlLink = 'https://drive.google.com/uc?export=download&id='
 
-  ui.alert('Populating requests...', "Press OK to continue", ui.ButtonSet.OK)
   for (var i = 1; i < checkBoolean.length; i++) {
     if (checkBoolean[i] == 'false' && originName[i] != "") {
       var stringURL = JSON.stringify(originModel[i]);
       var splitID = stringURL.split("=").pop();
-      splitID = splitID.slice(0,-1);
-      destName.push([originName[i]+ "("+originFSE[i]+")"]);
+      splitID = splitID.slice(0, -1);
+      destId.push([originId[i]]);
+      destName.push([originName[i] + "(" + originFSE[i] + ")"]);
       destEmail.push(originEmail[i]);
-      destPart.push(['=HYPERLINK('+'"'+dlLink+splitID+','+'"'+ originPart[i] + '"' + ')'])
+      destPart.push(['=HYPERLINK(' + '"' + dlLink + splitID + ',' + '"' + originPart[i] + '"' + ')'])
       destDate.push(originDate[i]);
       destChecked.push(todayDate)
       destReq.push('true');
       destCode.push('AUTO-IMPORT');
       destPrinter.push(originPrinter[i]);
       destMaterial.push(originMaterial[i]);
-      destNotes.push([originDensity[i]+' '+originUnit[i]+'. '+originNotes[i]]);
-      checkBoolean[i][0] ='true';          
+      destNotes.push(['[' + originDensity[i] + ' ' + originUnit[i] + '] ' + originNotes[i]]);
+      checkBoolean[i][0] = 'true';
     }
   }
-  inprogressCheck.setValues(checkBoolean)
+  inprogressCheck.setValues(checkBoolean);
 
-  requestCount = destName.length
+  var requestCount = destName.length;
   if (requestCount == 0) {
     ui.alert('Error!', 'There are no new requests to import.', ui.ButtonSet.OK)
   } else {
-    var nextRow = progressSheet.getLastRow() + 1
-    progressSheet.getRange(nextRow, 1, requestCount, 1).setValues(destName);
-    progressSheet.getRange(nextRow, 2, requestCount, 1).setValues(destEmail);
-    progressSheet.getRange(nextRow, 3, requestCount, 1).setFormulas(destPart);
-    progressSheet.getRange(nextRow, 4, requestCount, 1).setValues(destDate);
-    progressSheet.getRange(nextRow, 5, requestCount).setValue(destChecked);
-    progressSheet.getRange(nextRow, 6, requestCount).setValue(destReq);
-    progressSheet.getRange(nextRow, 7, requestCount).setValue(destCode);
-    progressSheet.getRange(nextRow, 8, requestCount, 1).setValues(destPrinter);
-    progressSheet.getRange(nextRow, 10, requestCount, 1).setValues(destMaterial);
-    progressSheet.getRange(nextRow, 11, requestCount, 1).setValues(destNotes);   
-    
+    var progresslastRow = progressSheet.getLastRow()
+    var progressnextRow = progresslastRow + 1
+    progressSheet.insertRowsAfter(progresslastRow, destName.length);
+    progressSheet.getRange(progressnextRow, 1, requestCount, 1).setValues(destId);
+    progressSheet.getRange(progressnextRow, 2, requestCount, 1).setValues(destName);
+    progressSheet.getRange(progressnextRow, 3, requestCount, 1).setValues(destEmail);
+    progressSheet.getRange(progressnextRow, 4, requestCount, 1).setFormulas(destPart);
+    progressSheet.getRange(progressnextRow, 5, requestCount, 1).setValues(destDate);
+    progressSheet.getRange(progressnextRow, 6, requestCount).setValue(destChecked);
+    progressSheet.getRange(progressnextRow, 7, requestCount).setValue(destReq);
+    progressSheet.getRange(progressnextRow, 8, requestCount).setValue(destCode);
+    progressSheet.getRange(progressnextRow, 9, requestCount, 1).setValues(destPrinter);
+    progressSheet.getRange(progressnextRow, 11, requestCount, 1).setValues(destMaterial);
+    progressSheet.getRange(progressnextRow, 12, requestCount, 1).setValues(destNotes);
+
     //Format Printer Names
-    var range = progressSheet.getRange("H:H");
+    var range = progressSheet.getRange("I:I");
     var values = range.getValues();
     for (var i = 1; i < values.length; i++) {
       if (values[i][0] == 'No Preference') {
@@ -371,10 +660,15 @@ function importRequest() {
       }
     }
     range.setValues(values)
-    
-    ui.alert('Success!', requestCount + ' requests imported. Ensure that it is checked off in the Work Request Quick Reference.', ui.ButtonSet.OK)
+
+    ui.alert('Success!', requestCount + ' request(s) imported.\n\n Ensure that it is checked off in the WORK REQUEST QUICK REFERENCE.', ui.ButtonSet.OK)
   }
-  var requestNotificationCell = progressSheet.getRange("K4");
-  requestNotificationCell.setBackground("#424242") 
+  var requestNotificationCell = progressSheet.getRange("L4");
+  requestNotificationCell.setBackground("#424242")
   requestNotificationCell.setFontColor("#424242")
 }
+
+//.addItem('Notify for pickup...', 'emailPickup')
+//.addItem('Notify to send as .stl...', 'emailSTL')
+//.addItem('Notify to pickup filament...', 'emailoutFilament')
+//.addItem('Notify to bring in filament...', 'emailinFilament')
